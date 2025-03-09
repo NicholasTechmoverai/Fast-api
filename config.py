@@ -31,8 +31,7 @@ class Config:
     ]
 
     FRONTEND_SERVER = "http://localhost:8080"
-    BACKEND_SERVER = "http://192.168.100.2:5000"  # ✅ Fixed extra space
-
+    BACKEND_SERVER = "http://192.168.100.2:5000"
     thumbnailPath = f"{BACKEND_SERVER}/static/thumbnails"
     profilePath = f"{BACKEND_SERVER}/static/uploads"
 

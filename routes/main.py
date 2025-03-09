@@ -13,6 +13,8 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse,Response
 from authlib.integrations.starlette_client import OAuth
 from starlette.config import Config as StarletteConfig
+from starlette.requests import Request
+
 from google.oauth2 import id_token
 from google.auth.transport import requests
 
@@ -41,14 +43,12 @@ google = oauth.register(
     client_secret=MY_SECRET,
     authorize_url="https://accounts.google.com/o/oauth2/auth",
     access_token_url="https://oauth2.googleapis.com/token",
-    redirect_uri="http://127.0.0.1:8000/login/callback",
     client_kwargs={"scope": "openid email profile"},
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
 )
 
 main_router = APIRouter()
 
-from fastapi import FastAPI
 
 
 @main_router.get("/")
@@ -75,31 +75,41 @@ async def login(request: Request):
     raise HTTPException(status_code=404, detail="User not found. Please check your email.")
 
 @main_router.get("/login/google")
-async def google_login():
-    redirect_uri = "http://127.0.0.1:8000/login/callback"
-    return await google.authorize_redirect(redirect_uri)
+async def google_login(request: Request):  # Ensure request is passed
+    redirect_uri = f"{Config.BACKEND_SERVER}/login/callback"
+    return await google.authorize_redirect(request, redirect_uri)
+
 
 @main_router.get("/login/callback")
 async def authorize_route(request: Request):
     try:
         token = await google.authorize_access_token(request)
-        user_info_response = await google.get("https://www.googleapis.com/oauth2/v1/userinfo")
+
+        if not token:
+            raise HTTPException(status_code=400, detail="Google OAuth token is missing")
+
+        user_info_response = await google.get("https://www.googleapis.com/oauth2/v1/userinfo", token=token)
         
         if user_info_response.status_code != 200:
             return RedirectResponse(url=f"{Config.FRONTEND_SERVER}/login?error=user_info_failed")
         
         user_info = user_info_response.json()
+        
         user_email = user_info.get("email")
         if not user_email:
             return RedirectResponse(url=f"{Config.FRONTEND_SERVER}/login?error=email_missing")
-        
-        if not validate_user(user_email):
+
+        if not await validate_user(user_email):
             await create_new_user(user_info)
-        
-        user_data = await fetch_user(user_email).get("user_info")
-        query_params = urlencode({"message": "Login successful", "user": json.dumps(user_data, default=str)})
-        
-        return RedirectResponse(url=f"{Config.FRONTEND_SERVER}/dashboard?{query_params}")
+
+        user_data = await fetch_user(user_email)
+        query_params = urlencode({
+            "message": "Login successful",
+            "user": json.dumps(user_data, default=str, ensure_ascii=False) 
+        })
+
+        return RedirectResponse(url=f"{Config.FRONTEND_SERVER}/?{query_params}")
+
     except Exception as e:
         logging.error(f"Authorization error: {e}")
         return RedirectResponse(url=f"{Config.FRONTEND_SERVER}/login?error=server_error")
@@ -198,14 +208,20 @@ async def send_email_reset_codes(request: EmailRequest):
 async def verify_codes(request: VerifyCodeRequest):
     email, code = request.email, request.code
 
-    print('Verifying EMAIL:', email, 'CODES:', code)
+    print(f'🔍 Verifying EMAIL: {email}, CODES: {code}')
 
-    check_token = await validate_token(email, code, False)
+    try:
+        check_token = await validate_token(email, code, False)
 
-    if not check_token.get('valid'):
-        raise HTTPException(status_code=400, detail=check_token.get('message'))
+        if not check_token.get('valid'):
+            raise HTTPException(status_code=400, detail=check_token.get('message'))
 
-    return {"success": True}
+        return {"success": True}
+    
+    except Exception as e:
+        print(f"⚠️ Error verifying code: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 
 # Endpoint to reset password
 @main_router.post('/reset_email_password')

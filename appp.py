@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from socketio import AsyncServer
 from socketio import ASGIApp
 import socketio
+from starlette.middleware.sessions import SessionMiddleware
 
 FRONTEND_ORIGINS = [
     "http://192.168.100.2:8080",
@@ -26,10 +27,15 @@ FRONTEND_ORIGINS = [
 ]
 
 
+
 media_directory = "static"
 os.makedirs(media_directory, exist_ok=True)
 
 from web_app import app, INJUserNamespace
+
+app.add_middleware(SessionMiddleware, secret_key="0000")
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
