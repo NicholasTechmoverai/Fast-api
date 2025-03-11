@@ -19,6 +19,7 @@ class DownloadRequest(BaseModel):
     userId: str = None
     size_mb: float = None
     thumbnailUrl: str = None
+    ext: str = 'mp4'
 
 @router.post("/download/yt")
 async def download_video(request: Request, data: DownloadRequest):
@@ -33,16 +34,19 @@ async def download_video(request: Request, data: DownloadRequest):
         user_id = data.userId
         file_size = data.size_mb
         thumbnail = data.thumbnailUrl
+        ext = data.ext
 
         if not url or not itag or not filename:
             raise HTTPException(status_code=400, detail="songId, itag, and filename are required")
 
+        dwnload_id = url
+
         if user_id:
-            await insert_download(
+            responce = await insert_download(
                 user_id=user_id,
                 song_id=song_id,
                 file_name=filename,
-                file_format=itag,
+                file_format=ext,
                 itag=itag,
                 file_size=file_size,
                 file_source="youtube",
@@ -51,7 +55,11 @@ async def download_video(request: Request, data: DownloadRequest):
                 is_partial=(start_byte > 0),
             )
 
-        content_type, _ = mimetypes.guess_type(filename)
+            if responce.get('download_id') and responce.get('download_id') is not None:
+                dwnload_id = str(responce.get('download_id'))
+               
+
+        content_type, _ = mimetypes.guess_type(filename + ext)
         if not content_type:
             content_type = "video/mp4"
 
@@ -61,7 +69,8 @@ async def download_video(request: Request, data: DownloadRequest):
             headers={
                 'Content-Disposition': f'attachment; filename="{filename}"',
                 'Accept-Ranges': 'bytes',
-                'X-Download-URL': url,
+                'X-Download-URL':dwnload_id ,
+                'format': ext,
             }
         )
     except Exception as e:

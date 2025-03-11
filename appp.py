@@ -71,3 +71,31 @@ app.include_router(d_streams_router, prefix="/api/download_streams")
 
 if __name__ == "__main__":
     uvicorn.run("appp:app", host="192.168.100.2", port=5000, reload=True, log_level="info")
+
+
+
+
+
+"""from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+import os
+
+app = FastAPI()
+
+# Simulated image storage (using unique user IDs)
+USER_IMAGES = {
+    "184249562": "../static/uploads/user_102548979592530401204.png",
+}
+
+@app.get("/avatars/{user_id}")
+def get_avatar(user_id: str, size: int = 400):
+    # Fetch image path based on user ID
+    image_path = USER_IMAGES.get(user_id)
+    
+    if not image_path or not os.path.exists(image_path):
+        raise HTTPException(status_code=404, detail="Avatar not found")
+    
+    # (Optional) Dynamically resize the image here if needed using Pillow
+    # For simplicity, returning the original image
+    return FileResponse(image_path, media_type="image/png")
+"""
