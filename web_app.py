@@ -6,6 +6,8 @@ import socketio
 from config import Config
 import asyncio
 from utils.globalDb import update_view_count
+from utils.sp_handler import Search_suggestions_spotify
+import json
 
 app = FastAPI()
 
@@ -97,3 +99,29 @@ class INJUserNamespace(socketio.AsyncNamespace):
         image_url = random.choice(list(images.values()))  
         asyncio.create_task(self.emit("animatesd_player", {"image": image_url}, room=sid))
 
+    
+
+    async def on_get_search_suggestions(self,sid, data):
+        try:
+            print(f"Raw Data received: {data} (Type: {type(data)})")
+
+            if not isinstance(data, dict):
+                await self.emit("message", {'message': f'Invalid data format received: {data}'}, room=sid)
+                return
+
+            userId = data.get('userId')
+            query = data.get('query', '').strip().lower()
+
+            print(f"Processed query: '{query}' for userId: '{userId}'")
+
+            if not query:
+                await self.emit("message", {'message': 'No query provided!'}, room=sid)
+                return
+
+            results = await Search_suggestions_spotify(query)
+            await self.emit("respoce_search_suggestions", {'search_suggestions': results}, room=sid)
+
+        except Exception as e:
+            print(f"Error in on_get_search_suggestions: {str(e)}")
+            if sid:
+                await self.emit("message", {'message': f"An error occurred: {str(e)}"}, room=sid)

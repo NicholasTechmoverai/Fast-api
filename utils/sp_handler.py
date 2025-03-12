@@ -39,7 +39,7 @@ def search_songs_spotify(query):
         return []
 
 
-#print(search_songs_spotify('london town'))
+print(globalSearch_spotify('london town'))
 
 
 
