@@ -205,3 +205,77 @@ async def fetch_downloads(
     finally:
         if conn:
             Config.pool.release(conn)  # ✅ Release connection instead of closing
+
+
+
+
+import logging
+import aiofiles
+from werkzeug.security import generate_password_hash
+from werkzeug.utils import secure_filename
+import base64
+
+async def update_UserProfile(userId, username=None, email=None, password=None, picture=None):
+    if not userId:
+        return {"success": False, "message": "User ID is required."}
+
+    update_query = []
+    params = []
+    picture_path = None
+
+    if username:
+        update_query.append("name=%s")
+        params.append(username)
+
+    if email:
+        update_query.append("email=%s")
+        params.append(email)
+
+    if password:
+        password_hashed = generate_password_hash(password)
+        update_query.append("password=%s")
+        params.append(password_hashed)
+
+    if picture:
+        try:
+            filename = f"user_{userId}.png"
+            picture_path = filename
+
+            if isinstance(picture, str) and picture.startswith("data:image"): 
+                image_data = picture.split(",")[1]
+                async with aiofiles.open(picture_path, "wb") as img_file:
+                    await img_file.write(base64.b64decode(image_data))
+
+            elif hasattr(picture, "filename"):  
+                filename = secure_filename(filename)
+                async with aiofiles.open(picture_path, "wb") as img_file:
+                    await img_file.write(await picture.read())
+
+            update_query.append("picture=%s")
+            params.append(picture_path)
+
+        except Exception as e:
+            logging.error(f"Failed to process image: {e}")
+            return {"success": False, "message": f"Failed to process image: {str(e)}"}
+
+    if not update_query:
+        return {"success": False, "message": "No updates provided."}
+
+    update_query_str = ", ".join(update_query)
+    params.append(userId)
+
+    sql_query = f"UPDATE injustifyusers SET {update_query_str} WHERE id=%s"
+
+    try:
+        conn = await Config.get_db_connection()
+        async with conn.cursor() as cursor:
+            await cursor.execute(sql_query, params)
+            await conn.commit()
+               
+        return {"success": True, "message": "Profile updated successfully."}
+    except Exception as err:
+        logging.error(f"Error updating user profile: {err}")
+        return {"success": False, "message": "Failed to update profile."}
+    finally:
+        if conn:
+            await Config.pool.release(conn)

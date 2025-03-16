@@ -76,8 +76,8 @@ def fetch_youtube_results(query):
     with yt_lock:
         youtube_results[query] = results
 
-async def fetch_spotify_results(query):
-    results = await search_songs_spotify(query)
+def fetch_spotify_results(query):
+    results = search_songs_spotify(query)
     with sp_lock:
         spotify_results[query] = results
 

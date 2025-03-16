@@ -71,6 +71,8 @@ app.include_router(d_streams_router, prefix="/api/download_streams")
 
 if __name__ == "__main__":
     uvicorn.run("appp:app", host="192.168.100.2", port=5000, reload=True, log_level="info")
+    #uvicorn.run("appp:app", host="127.0.0.1", port=5000, reload=True, log_level="info")
+
 
 
 

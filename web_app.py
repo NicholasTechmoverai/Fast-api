@@ -103,7 +103,6 @@ class INJUserNamespace(socketio.AsyncNamespace):
 
     async def on_get_search_suggestions(self,sid, data):
         try:
-            print(f"Raw Data received: {data} (Type: {type(data)})")
 
             if not isinstance(data, dict):
                 await self.emit("message", {'message': f'Invalid data format received: {data}'}, room=sid)
@@ -112,13 +111,13 @@ class INJUserNamespace(socketio.AsyncNamespace):
             userId = data.get('userId')
             query = data.get('query', '').strip().lower()
 
-            print(f"Processed query: '{query}' for userId: '{userId}'")
 
             if not query:
                 await self.emit("message", {'message': 'No query provided!'}, room=sid)
                 return
 
             results = await Search_suggestions_spotify(query)
+            print('FOUND::',results)
             await self.emit("respoce_search_suggestions", {'search_suggestions': results}, room=sid)
 
         except Exception as e:

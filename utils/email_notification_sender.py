@@ -113,13 +113,15 @@ async def send_verify_link(email, token = None):
     if not email or "@" not in email:
         raise ValueError("Invalid recipient email address.")
     
+    token = await generate_random_code(6)
+
+    
     if not token:
         raise ValueError("Invalid or missing token.")
 
     url = f"{Frontend_server}/verify/auth?email={email}&token={token}"
     
     now = dl.datetime.now()
-    token = await generate_random_code(6)
     
     email_message = f"""
     <html>
@@ -144,8 +146,8 @@ async def send_verify_link(email, token = None):
     message['Subject'] = "Verify your email address"
     message.attach(MIMEText(email_message, "html"))
 
-    result= set_token(email,token)
-    if  result['success']== False:
+    result= await set_token(email,token)
+    if  result.get('success')== False:
         """
         check if the email has  a set token in db and the token re
         """

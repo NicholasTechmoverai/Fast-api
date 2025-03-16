@@ -1,9 +1,10 @@
+
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import mimetypes
 from config import Config
-from utils.yt_handler_YTDLP import download_stream
+from utils.yt_handler_YTDLP import download_stream,download_and_merge
 from utils.globalDb import insert_download
 
 router = APIRouter()
@@ -63,17 +64,29 @@ async def download_video(request: Request, data: DownloadRequest):
         if not content_type:
             content_type = "video/mp4"
 
-        return StreamingResponse(
-            download_stream(url, itag, start_byte),
-            media_type=content_type,
-            headers={
-                'Content-Disposition': f'attachment; filename="{filename}"',
-                'Accept-Ranges': 'bytes',
-                'X-Download-URL':dwnload_id ,
-                'format': ext,
-            }
+        headers = {
+            'Content-Disposition': f'attachment; filename="{filename}"',
+            'Accept-Ranges': 'bytes',
+            'X-Download-URL': dwnload_id,
+            'format': ext,
+        }
+
+        stream = (
+            download_stream(url, itag, start_byte) 
+            if itag in {'18', '140', '152'} 
+            else download_and_merge(url, itag, '140')
         )
+
+        return StreamingResponse(
+            stream,
+            media_type=content_type,
+            headers=headers
+        )
+
     except Exception as e:
         print(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
 

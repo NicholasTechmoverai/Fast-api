@@ -143,3 +143,109 @@ async def download_stream(url, itag, start_byte=0):
         print(f"Error streaming video: {str(e)}")
         yield b"Error: " + str(e).encode()
 
+
+
+
+
+
+
+
+
+
+import aiohttp
+import asyncio
+import tempfile
+import os
+import ffmpeg
+import yt_dlp
+from ffmpeg import Error as FFmpegError
+
+async def download_file(url, file_path, total_size=None):
+ 
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            response.raise_for_status()
+            total_size = total_size or int(response.headers.get('Content-Length', 0))
+            downloaded_size = 0
+
+            with open(file_path, 'wb') as file:
+                while chunk := await response.content.read(1024 * 1024):  # 1MB chunks
+                    file.write(chunk)
+                    downloaded_size += len(chunk)
+                    if total_size > 0:
+                        progress = (downloaded_size / total_size) * 100
+                        print(f"Downloading {file_path}: {progress:.2f}% complete", end='\r')
+                print()  # Newline after download completes
+
+async def download_and_merge(url, video_itag, audio_itag):
+
+    try:
+        ydl_opts = {'noplaylist': True, 'quiet': True}
+
+        # Get video and audio URLs
+        loop = asyncio.get_event_loop()
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            video_info = await loop.run_in_executor(None, lambda: ydl.extract_info(url, download=False))
+
+        video_url = next((fmt['url'] for fmt in video_info.get('formats', []) if fmt['format_id'] == video_itag), None)
+        audio_url = next((fmt['url'] for fmt in video_info.get('formats', []) if fmt['format_id'] == audio_itag), None)
+
+        if not video_url or not audio_url:
+            raise ValueError("Stream URLs not found.")
+
+        # Get content length to determine total size
+        async with aiohttp.ClientSession() as session:
+            video_size = int((await session.head(video_url)).headers.get('Content-Length', 0))
+            audio_size = int((await session.head(audio_url)).headers.get('Content-Length', 0))
+
+        # Create temporary files for video and audio
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as video_file, \
+             tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as audio_file:
+
+            video_path = video_file.name
+            audio_path = audio_file.name
+
+        # Download video and audio files concurrently
+        print("Starting download...")
+        await asyncio.gather(
+            download_file(video_url, video_path, video_size),
+            download_file(audio_url, audio_path, audio_size)
+        )
+        print("Download complete.")
+
+        # Merge the downloaded files
+        merged_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+        print("Merging video and audio...")
+        try:
+            video_input = ffmpeg.input(video_path)
+            audio_input = ffmpeg.input(audio_path)
+
+            ffmpeg.output(
+                video_input,
+                audio_input,
+                merged_path,
+                vcodec='copy',
+                acodec='aac',
+                movflags='faststart',  # Move moov atom to the beginning
+                strict='experimental'
+            ).run(overwrite_output=True, quiet=True, capture_stdout=True, capture_stderr=True)
+
+        except FFmpegError as e:
+            print("FFmpeg stderr:", e.stderr.decode())
+            raise
+
+        # Stream or save the merged file
+        with open(merged_path, 'rb') as merged_file:
+            while chunk := merged_file.read(1024 * 1024):  # Stream in 1MB chunks
+                yield chunk
+
+        # Clean up temporary files
+        os.remove(video_path)
+        os.remove(audio_path)
+        os.remove(merged_path)
+
+    except Exception as e:
+        print(f"Error during download and merge: {str(e)}")
+        yield b"Error: " + str(e).encode()
+        
+        

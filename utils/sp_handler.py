@@ -1,13 +1,18 @@
 import spotipy,json,os
+import asyncio
+
 from spotipy.oauth2 import SpotifyClientCredentials
 client_id = os.getenv('SPOTIPY_CLIENT_ID')
 client_secret = os.getenv('SPOTIPY_CLIENT_SECRET')
 
 sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id, client_secret))
 
-def globalSearch_spotify(search):
+async def Search_suggestions_spotify(search):
     try:
-        results = sp.search(q=search, type="track", limit=10)
+        # Run the blocking call in a separate thread
+        results = await asyncio.to_thread(sp.search, q=search, type="track", limit=10)
+        #print(results)
+        
         suggestions = [
             {"name": track['name'], "artist": track['artists'][0]['name']}
             for track in results['tracks']['items']
@@ -16,6 +21,7 @@ def globalSearch_spotify(search):
     except Exception as e:
         print(f"Error in Spotify search: {str(e)}")
         return []
+
 
 
 def search_songs_spotify(query):
@@ -39,7 +45,12 @@ def search_songs_spotify(query):
         return []
 
 
-print(globalSearch_spotify('london town'))
 
 
 
+"""
+async def main():
+    suggestions = await Search_suggestions_spotify("london")
+    print(suggestions)
+
+asyncio.run(main())"""
