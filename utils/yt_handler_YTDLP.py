@@ -147,11 +147,6 @@ async def download_stream(url, itag, start_byte=0):
 
 
 
-
-
-
-
-
 import aiohttp
 import asyncio
 import tempfile
@@ -247,5 +242,4 @@ async def download_and_merge(url, video_itag, audio_itag):
     except Exception as e:
         print(f"Error during download and merge: {str(e)}")
         yield b"Error: " + str(e).encode()
-        
         

@@ -4,6 +4,7 @@ from utils.userDb import fetch_user, fetch_downloads
 from fastapi import FastAPI, UploadFile, Form, File, HTTPException
 from fastapi.responses import JSONResponse
 from typing import Optional
+from datetime import datetime
 
 from utils.userDb import update_UserProfile
 
@@ -18,14 +19,41 @@ async def get_profile(useremail: str):
         raise HTTPException(status_code=404, detail="User not found")
     return {"user_info": user_info}
 
+
+from fastapi import HTTPException
+import logging
+
+logger = logging.getLogger(__name__)
+
 @profile_router.get("/downloads/{useremail}")
-async def get_downloads(useremail: str):
-    print(f"Getting downloads for {useremail}")
-    result = await fetch_downloads(useremail, None, None, None, None, None, 'timestamp ASC')
-    downloads = result.get('downloads', [])
-    return {"downloads": downloads}
+async def get_downloads(
+    useremail: str,
+    search: str = None,
+    offset: int = 0,
+    limit: int = 10,
+    order_by: str = 'timestamp DESC',
+    name: str = None,
+    artist: str = None,
+    date: datetime = None,
+):
+    
+    if not useremail:
+        raise HTTPException(status_code=400, detail="Missing user email")
+    
+    if date == "":
+        date = None  
 
 
+    if search == "":
+        search = None
+
+    try:
+        result = await fetch_downloads(useremail, None, search, date, limit, offset, order_by)
+        downloads = result.get('downloads', [])
+        return {"downloads": downloads}
+    except Exception as e:
+        logger.error(f"Error fetching downloads for {useremail}: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @profile_router.get("/updateProfile")
 async def update_profile(

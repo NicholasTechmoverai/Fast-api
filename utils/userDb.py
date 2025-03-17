@@ -167,7 +167,7 @@ async def fetch_downloads(
                 values.append(song_id)
             
             if name:
-                query += " AND filename LIKE %s"
+                query += " AND file_name LIKE %s"
                 values.append(f"%{name}%")
             
             if date:
