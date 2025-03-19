@@ -28,6 +28,7 @@ def get_streams_local(filename: str):
         "type": mime_type or "unknown",
         "size_mb": file_size_mb,
         "success": True,
+        "itag":'18',
         "info": {
             "title": filename_without_extension,
             "artist": filename,
