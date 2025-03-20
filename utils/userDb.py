@@ -1,11 +1,15 @@
-import logging
+import logging,os
 import uuid
 from werkzeug.security import check_password_hash, generate_password_hash
 from config import Config
 from datetime import datetime
 from typing import Optional, List, Dict, Union
-
+import logging
+import aiofiles
+from werkzeug.utils import secure_filename
 logging.basicConfig(level=logging.INFO)
+import base64
+
 
 async def fetch_user(user_id):
     if not user_id:
@@ -189,6 +193,10 @@ async def fetch_downloads(
             results = await cursor.fetchall()
 
             downloads = [{
+
+                'download_id':result[0],
+                'user_id': result[1],
+                'song_id': result[2],
                 'itag':result[5],
                 'file_source':result[7],
                 'filesize': result[6],
@@ -225,13 +233,11 @@ async  def delete_song_from_downloads(songId,userId):
 
 
 
-import logging
-import aiofiles
-from werkzeug.security import generate_password_hash
-from werkzeug.utils import secure_filename
-import base64
 
-async def update_UserProfile(userId, username=None, email=None, password=None, picture=None):
+
+async def update_UserProfile(userId, username=None, email=None, picture=None):
+
+    print("Updating user profile for user " , userId ,"...", picture)
     if not userId:
         return {"success": False, "message": "User ID is required."}
 
@@ -247,15 +253,12 @@ async def update_UserProfile(userId, username=None, email=None, password=None, p
         update_query.append("email=%s")
         params.append(email)
 
-    if password:
-        password_hashed = generate_password_hash(password)
-        update_query.append("password=%s")
-        params.append(password_hashed)
 
     if picture:
         try:
             filename = f"user_{userId}.png"
-            picture_path = filename
+            picture_path = os.path.join(Config.PROFILE_UPLOAD_FOLDER, filename)
+            
 
             if isinstance(picture, str) and picture.startswith("data:image"): 
                 image_data = picture.split(",")[1]
@@ -268,7 +271,7 @@ async def update_UserProfile(userId, username=None, email=None, password=None, p
                     await img_file.write(await picture.read())
 
             update_query.append("picture=%s")
-            params.append(picture_path)
+            params.append(filename)
 
         except Exception as e:
             logging.error(f"Failed to process image: {e}")
@@ -287,8 +290,10 @@ async def update_UserProfile(userId, username=None, email=None, password=None, p
         async with conn.cursor() as cursor:
             await cursor.execute(sql_query, params)
             await conn.commit()
+
+        updated_user = await fetch_user(userId)    
                
-        return {"success": True, "message": "Profile updated successfully."}
+        return {"success": True, "message": "Profile updated successfully.","user":updated_user.get("user_info")}
     except Exception as err:
         logging.error(f"Error updating user profile: {err}")
         return {"success": False, "message": "Failed to update profile."}

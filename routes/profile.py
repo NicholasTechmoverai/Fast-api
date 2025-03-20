@@ -55,25 +55,34 @@ async def get_downloads(
         logger.error(f"Error fetching downloads for {useremail}: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-@profile_router.get("/updateProfile")
+from fastapi import APIRouter, Form, File, UploadFile, Depends
+
+
+
+
+
+@profile_router.post("/updateProfile")
 async def update_profile(
     userId: str = Form(...),
-    email: Optional[str] = Form(None),
-    name: Optional[str] = Form(None),
-    password: Optional[str] = Form(None),
-    profilePic: Optional[UploadFile] = File(None)
+    profilePic: UploadFile = File(None),  # Make it optional
+    name: str = Form(None),
+    email: str = Form(None),
 ):
     try:
         if not userId:
-            return JSONResponse(content={"success": False, "message": "You need to log in!"})
+            return JSONResponse(status_code=400, content={"success": False, "message": "You need to log in!"})
 
         print("Updating profile....")
-        result = update_UserProfile(userId, name, email, password, profilePic)
 
-        if result.get('success'):
+
+  
+        result = await update_UserProfile(userId, name, email, profilePic)  
+
+        if result.get("success"):
             return JSONResponse(content={"success": True, "message": "Profile updated successfully."})
         else:
-            return JSONResponse(content={"success": False, "message": "Failed to update profile."})
+            return JSONResponse(status_code=400, content={"success": False, "message": result.get("message", "Failed to update profile.")})
 
     except Exception as e:
-        return JSONResponse(content={"success": False, "message": "An error occurred", "error": str(e)})
+        logging.error("Error updating profile", exc_info=True)
+        return JSONResponse(status_code=500, content={"success": False, "message": "An error occurred", "error": str(e)})

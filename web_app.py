@@ -36,11 +36,11 @@ class INJUserNamespace(socketio.AsyncNamespace):
     async def on_loginUser(self, sid, data):
         username = data.get("userLoggedEmail", "")
         logging.info(f"🔓 User {username} logged in.")
-        await self.emit("message", {"msg": f"Hello {username}, welcome!", "msg_type": "SUCCESS"}, room=sid)
+        await self.emit("message", {"msg": f"Hello {username}, welcome!", "type": "success"}, room=sid)
     
     async def on_message(self, sid, msg):
         logging.info(f"📩 Message received: {msg}")
-        await self.emit("message", {"msg": msg}, room=sid)
+        await self.emit("message", {"msg": msg,'type':'info'}, room=sid)
     
     async def on_updateViewCount(self, sid, data):
         if not isinstance(data, dict):
@@ -106,7 +106,7 @@ class INJUserNamespace(socketio.AsyncNamespace):
         try:
 
             if not isinstance(data, dict):
-                await self.emit("message", {'message': f'Invalid data format received: {data}'}, room=sid)
+                await self.emit("message", {'message': f'Invalid data format received: {data}','type':'error'}, room=sid)
                 return
 
             userId = data.get('userId')
@@ -114,40 +114,40 @@ class INJUserNamespace(socketio.AsyncNamespace):
 
 
             if not query:
-                await self.emit("message", {'message': 'No query provided!'}, room=sid)
+                await self.emit("message", {'message': 'No query provided!','type':'error'}, room=sid)
                 return
 
             results = await Search_suggestions_spotify(query)
-            print('FOUND::',results)
+            #print('FOUND::',results)
             await self.emit("respoce_search_suggestions", {'search_suggestions': results}, room=sid)
 
         except Exception as e:
             print(f"Error in on_get_search_suggestions: {str(e)}")
             if sid:
-                await self.emit("message", {'message': f"An error occurred: {str(e)}"}, room=sid)
+                await self.emit("message", {'message': f"An error occurred: {str(e)}",'type':'error'}, room=sid)
 
 
     async def on_deleteDownload(self,sid,data):
         try:
             if not isinstance(data, dict):
-                await self.emit("message", {'message': f'Invalid data format received: {data}'}, room=sid)
+                await self.emit("message", {'message': f'Invalid data format received: {data}','type':'error'}, room=sid)
                 return
             songId = data.get('downloadId')
             userId = data.get('userId')
 
             if not songId or not userId:
-                await self.emit("message", {'message': 'No songId or userId provided!'}, room=sid)
+                await self.emit("message", {'message': 'No songId or userId provided!','type':'error'}, room=sid)
                 return
             
             delete_download_task = await  delete_song_from_downloads(songId, userId)
             if delete_download_task.get('success'):
-               await self.emit("message", {'message':delete_download_task.get('message') }, room=sid)
+               await self.emit("message", {'message':delete_download_task.get('message'),'type':'success' }, room=sid)
             else:
-               await self.emit("message", {'message':delete_download_task.get('message') }, room=sid)
+               await self.emit("message", {'message':delete_download_task.get('message'),'type':'error' }, room=sid)
 
         except Exception as e:
             print(f"Error in on_deleteDownload: {str(e)}")
             if sid:
-                await self.emit("message", {'message': f"An error occurred: {str(e)}"}, room=sid)
+                await self.emit("message", {'message': f"An error occurred: {str(e)}",'type':'error'}, room=sid)
 
 
