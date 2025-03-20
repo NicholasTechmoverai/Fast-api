@@ -6,21 +6,18 @@ import aiomysql
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-app = FastAPI()  # ✅ Define app first
+app = FastAPI() 
 
-# ✅ Mount static directory to serve files (thumbnails, uploads, etc.)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'default_secret_key')
 
-    # Secure session cookies in production
     SESSION_COOKIE_SECURE = os.getenv("FLASK_ENV") == "production"
 
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
     SONGS_FOLDER = os.path.join(BASE_DIR, 'static', 'songs')
 
-    # Allowed CORS origins
     CORS_ALLOWED_ORIGINS = [
         "http://example.com",
         "http://192.168.100.2:5000",
@@ -52,7 +49,7 @@ class Config:
         "port": 3306
     }
 
-    pool = None  # ✅ Persistent connection pool
+    pool = None  
 
     @staticmethod
     async def init_db_pool():
@@ -64,9 +61,9 @@ class Config:
     async def get_db_connection():
         """ Get a database connection from the pool. """
         if Config.pool is None:
-            await Config.init_db_pool()  # Ensure the pool is initialized
+            await Config.init_db_pool()  
         
-        conn = await Config.pool.acquire()  # ✅ Get connection
+        conn = await Config.pool.acquire() 
         return conn
 
     @staticmethod

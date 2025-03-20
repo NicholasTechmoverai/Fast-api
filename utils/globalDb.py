@@ -613,3 +613,4 @@ async def get_playlists(user_id):
     
     finally:
         Config.pool.release(conn)  # ✅ Release connection instead of closing
+

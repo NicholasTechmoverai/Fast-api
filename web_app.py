@@ -7,6 +7,7 @@ from config import Config
 import asyncio
 from utils.globalDb import update_view_count
 from utils.sp_handler import Search_suggestions_spotify
+from utils.userDb import delete_song_from_downloads
 import json
 
 app = FastAPI()
@@ -124,3 +125,29 @@ class INJUserNamespace(socketio.AsyncNamespace):
             print(f"Error in on_get_search_suggestions: {str(e)}")
             if sid:
                 await self.emit("message", {'message': f"An error occurred: {str(e)}"}, room=sid)
+
+
+    async def on_deleteDownload(self,sid,data):
+        try:
+            if not isinstance(data, dict):
+                await self.emit("message", {'message': f'Invalid data format received: {data}'}, room=sid)
+                return
+            songId = data.get('downloadId')
+            userId = data.get('userId')
+
+            if not songId or not userId:
+                await self.emit("message", {'message': 'No songId or userId provided!'}, room=sid)
+                return
+            
+            delete_download_task = await  delete_song_from_downloads(songId, userId)
+            if delete_download_task.get('success'):
+               await self.emit("message", {'message':delete_download_task.get('message') }, room=sid)
+            else:
+               await self.emit("message", {'message':delete_download_task.get('message') }, room=sid)
+
+        except Exception as e:
+            print(f"Error in on_deleteDownload: {str(e)}")
+            if sid:
+                await self.emit("message", {'message': f"An error occurred: {str(e)}"}, room=sid)
+
+

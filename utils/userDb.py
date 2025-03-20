@@ -189,9 +189,11 @@ async def fetch_downloads(
             results = await cursor.fetchall()
 
             downloads = [{
+                'itag':result[5],
+                'file_source':result[7],
                 'filesize': result[6],
                 'filename': result[3],
-                'thumbnail': result[14],
+                'thumbnail': result[14] if 'injustify' not in result[7] else f"{Config.thumbnailPath}/{result[14]}",
                 'links': result[2],
                 'timestamp': result[10].strftime('%Y-%m-%d %H:%M:%S'),
             } for result in results]
@@ -206,6 +208,20 @@ async def fetch_downloads(
         if conn:
             Config.pool.release(conn)  # ✅ Release connection instead of closing
 
+
+async  def delete_song_from_downloads(songId,userId):
+    conn = await Config.get_db_connection()
+    try:
+        async with conn.cursor() as cursor:
+            await cursor.execute("DELETE FROM downloads WHERE user_id=%s AND song_id=%s", (userId, songId))
+            await conn.commit()
+            return {"success": True, "message": "Song deleted successfully."}
+    except Exception as e:
+        logging.error(f"Error deleting song from downloads: {e}")
+        return {"success": False, "message": f"Error deleting song: {str(e)}"}
+    finally:
+        if conn:
+            Config.pool.release(conn) 
 
 
 

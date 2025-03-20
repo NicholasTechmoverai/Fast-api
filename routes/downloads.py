@@ -2,10 +2,12 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-import mimetypes
+import mimetypes,os
 from config import Config
 from utils.yt_handler_YTDLP import download_stream,download_and_merge
 from utils.globalDb import insert_download
+
+from config import Config
 
 router = APIRouter()
 mydb = Config.mydb
@@ -90,3 +92,68 @@ async def download_video(request: Request, data: DownloadRequest):
 
 
 
+@router.post('/download/injustify')
+async def download_video_local(request: Request, data: DownloadRequest):
+    if not data.filename or not data.songId or not data.itag:
+        raise HTTPException(status_code=400, detail="songId, itag, and filename are required")
+
+    file_path = os.path.join(Config.SONGS_FOLDER, data.song_url)
+
+    if not os.path.exists(file_path):
+        print(f"File not found: {file_path}")
+        raise HTTPException(status_code=404, detail="File not found")
+
+    responce = {}
+    if data.userId and data.songId: 
+        responce = await insert_download(
+            user_id=data.userId,
+            song_id=data.songId,
+            file_name=data.filename,
+            file_format=data.itag,
+            itag=data.itag,
+            file_size=data.size_mb,
+            file_source="injustify",
+            thumbnail=data.thumbnailUrl,
+            user_agent=request.headers.get('User-Agent'),
+            is_partial=(data.start_byte > 0),
+        )
+
+    dwnload_id = responce.get('download_id', data.songId)  # Default to song_id if download_id is missing
+    file_size = os.path.getsize(file_path)
+
+    if data.start_byte >= file_size:
+        raise HTTPException(status_code=416, detail="Requested range not satisfiable")
+
+    end_byte = file_size - 1  # Last byte index
+    content_range = f"bytes {data.start_byte}-{end_byte}/{file_size}"
+
+    mime_type, _ = mimetypes.guess_type(file_path)
+    content_type = mime_type or 'video/mp4'
+
+    ascii_filename = data.filename.encode('ascii', 'ignore').decode()
+    disposition_filename = f"filename*=UTF-8''{ascii_filename}"
+
+    headers = {
+        'Content-Type': content_type,
+        'Content-Disposition': f'attachment; {disposition_filename}',
+        'Content-Range': content_range,
+        'Content-Length': str(end_byte - data.start_byte + 1),
+        'X-Download-URL': str(dwnload_id),
+        'format': data.ext,
+    }
+
+    return StreamingResponse(
+        download_stream_local(file_path, data.start_byte),
+        status_code=206,
+        headers=headers
+    )
+
+def download_stream_local(file_path, start_byte=0):
+    try:
+        chunk_size = 1024 * 1024  # 1MB chunks
+        with open(file_path, 'rb') as f:
+            f.seek(start_byte)
+            while chunk := f.read(chunk_size):
+                yield chunk
+    except Exception as e:
+        print(f"Error streaming file: {e}")

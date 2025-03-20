@@ -12,7 +12,7 @@ router = APIRouter()
 download_folder = Config.SONGS_FOLDER
 
 @router.get("/injustify/{filename}")
-def get_streams_local(filename: str):
+async def get_streams_local(filename: str):
     file_path = os.path.join(download_folder, filename)
     
     if not os.path.exists(file_path):
