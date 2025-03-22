@@ -8,7 +8,7 @@ from typing import Dict, Any
 from utils.sp_handler import search_songs_spotify
 from utils.yt_handler_PYTUBE import search_videos_yt
 from utils.globalDb import (
-    fetch_songs, get_playlistSongs, fetch_User_LikedSongs, fetchTrendingSongs,
+    fetch_songs, get_playlist_songs, fetch_User_LikedSongs, fetchTrendingSongs,
     fetchUserTopSongs, get_playlists, fetchStreamRate,createPlaylistDB,updatePlaylistDB
 )
 
@@ -104,7 +104,7 @@ async def fetch_playlists(pl_id: str):
     if not pl_id:
         raise HTTPException(status_code=400, detail="Playlist ID is required")
     
-    pl_songs = await get_playlistSongs(pl_id)
+    pl_songs = await get_playlist_songs(pl_id)
     if not pl_songs:
         raise HTTPException(status_code=204, detail="Playlist is empty")
     
