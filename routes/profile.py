@@ -68,6 +68,7 @@ async def update_profile(
     name: str = Form(None),
     email: str = Form(None),
 ):
+    
     try:
         if not userId:
             return JSONResponse(status_code=400, content={"success": False, "message": "You need to log in!"})
