@@ -6,7 +6,7 @@ import mimetypes,os
 from config import Config
 from utils.yt_handler_YTDLP import download_stream,download_and_merge
 from utils.globalDb import insert_download
-
+from typing import Optional
 from config import Config
 
 router = APIRouter()

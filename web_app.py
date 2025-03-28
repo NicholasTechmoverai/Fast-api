@@ -5,7 +5,7 @@ import random
 import socketio
 from config import Config
 import asyncio
-from utils.globalDb import update_view_count
+from utils.globalDb import update_view_count,likeUnlike
 from utils.sp_handler import Search_suggestions_spotify
 from utils.userDb import delete_song_from_downloads
 import json
@@ -57,6 +57,31 @@ class INJUserNamespace(socketio.AsyncNamespace):
         
         await update_view_count(song_id, user_id, song_percentage)
 
+    async def on_likeUnlikeSong(self, sid,data):
+        userId = data.get('userId')
+        songId = data.get('songId')
+        
+        if not userId or not songId:
+            await self.emit('message', {
+                'type': 'error',
+                'message': 'Error: Missing required data for liking & unliking song'
+            })
+            return
+
+        result = await likeUnlike(songId, userId)
+        
+        if result['success']:
+            await self.emit('message', {
+                'type': 'success',
+                'message': result.get('message'),
+                'likes': result.get('newUPdate')
+            }, room=sid)
+        else:
+            logging.error("Error updating song and view")
+            await self.emit('message', {
+                'type': 'error',
+                'message': result.get('message')
+            })
     
     async def on_request_image(self, sid):
         images = {

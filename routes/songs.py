@@ -2,8 +2,9 @@ from fastapi import APIRouter, HTTPException, Query
 from config import Config
 import mysql.connector
 import threading
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Dict, Any
+from typing import Optional
 
 from utils.sp_handler import search_songs_spotify
 from utils.yt_handler_PYTUBE import search_videos_yt
@@ -65,11 +66,18 @@ async def fetch_user_top_songs(userId: str, limit: int = 10):
         raise HTTPException(status_code=500, detail="Failed to fetch top songs")
 
 @router.get("/{user_id}")
-async def return_fetch_songs(user_id: str, search: str = Query(None, alias="search")):
+async def return_fetch_songs(
+    user_id: str, 
+    search: Optional[str] = Query(None, alias="search"),
+    offset: int = 0, 
+    limit: int = 24,    
+    order_by: Optional[str] = None
+):
     if search and search.lower() != "null":
         threading.Thread(target=fetch_youtube_results, args=(search,), daemon=True).start()
         threading.Thread(target=fetch_spotify_results, args=(search,), daemon=True).start()
-    return await fetch_songs(user_id, 24, 0, search, None)
+    
+    return await fetch_songs(user_id, limit, offset, search if search and search.lower() != "null" else None, None)
 
 def fetch_youtube_results(query):
     results = search_videos_yt(query)
@@ -163,6 +171,7 @@ class PlaylistRenameRequest(BaseModel):
 class PlaylistDeleteRequest(BaseModel):
     playlistId: str
 
+
 @router.get("/str/{userId}")
 async def get_stream_position(userId: str):
     if not userId:
@@ -201,11 +210,45 @@ async def delete_playlist(request: PlaylistDeleteRequest):
     if not request.playlistId:
         raise HTTPException(status_code=400, detail="Playlist ID is required")
     
-    result = await updatePlaylistDB(request.playlistId, None, "delete")
+    result = await updatePlaylistDB(request.playlistId,None,"delete", None, )
     if result.get("success"):
         return {"success": True, "message": result["message"], "info": result.get("info", {})}
     
     raise HTTPException(status_code=500, detail=result.get("message", "Unknown error"))
+
+
+
+class UpdatePlaylist(BaseModel):
+    playlistId: str
+    userId: Optional[str] = None
+    action: str
+    songId: str
+
+    @field_validator("action")
+    @classmethod
+    def validate_action(cls, value):
+        if value not in ["add", "remove"]:
+            raise ValueError("Invalid action. Must be 'add' or 'remove'")
+        return value
+
+@router.post("/pls_update")
+async def update_playlist(request: UpdatePlaylist):
+    print(
+        f"Updating playlist: {request.playlistId} - {request.action} song: {request.songId}"
+    )
+
+    if not request.playlistId or not request.songId:
+        raise HTTPException(status_code=400, detail="Playlist ID and song ID are required")
+
+    result = await updatePlaylistDB(request.playlistId, request.songId, request.action,None)
+
+    if result.get("success"):
+        return {"success": True, "message": result["message"], "info": result.get("info", {})}
+
+    raise HTTPException(status_code=500, detail=result.get("message", "Unknown error"))
+
+
+
 
 
 

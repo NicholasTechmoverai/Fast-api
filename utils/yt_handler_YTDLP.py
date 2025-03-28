@@ -215,14 +215,26 @@ async def download_and_merge(url, video_itag, audio_itag):
             video_input = ffmpeg.input(video_path)
             audio_input = ffmpeg.input(audio_path)
 
+            # ffmpeg.output(
+            #     video_input,
+            #     audio_input,
+            #     merged_path,
+            #     vcodec='copy',
+            #     acodec='aac',
+            #     movflags='faststart',  # Move moov atom to the beginning
+            #     strict='experimental'
+            # ).run(overwrite_output=True, quiet=Tr                                    ue, capture_stdout=True, capture_stderr=True)
             ffmpeg.output(
                 video_input,
                 audio_input,
                 merged_path,
                 vcodec='copy',
                 acodec='aac',
-                movflags='faststart',  # Move moov atom to the beginning
-                strict='experimental'
+                movflags='+faststart',  # Move moov atom to the beginning
+                # threads=8,
+                present = 'veryfast',
+                strict='experimental',
+                pix_fmt='yuv420p',
             ).run(overwrite_output=True, quiet=True, capture_stdout=True, capture_stderr=True)
 
         except FFmpegError as e:

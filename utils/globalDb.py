@@ -7,7 +7,55 @@ from config import Config
 import aiomysql
 
 
+async def likeUnlike(songId, userId):
+    if not songId or not userId:
+        return {"success": False, "message": "Invalid song or user ID"}
 
+    sql_unlike = "DELETE FROM songlikes WHERE song_id = %s AND user_id = %s"
+    sql_insert = "INSERT INTO songlikes (song_id, user_id) VALUES (%s, %s)"
+
+    values = (songId, userId)
+
+    try:
+        conn = await Config.get_db_connection()
+        if not conn:
+            return {"success": False, "message": "Database connection failed"}
+
+        async with conn.cursor() as cursor:
+            # First, attempt to delete (unlike)
+            await cursor.execute(sql_unlike, values)
+            if cursor.rowcount > 0:
+                action_message = "Unliked successfully!"
+            else:
+                # If nothing was deleted, insert (like)
+                await cursor.execute(sql_insert, values)
+                action_message = "Liked successfully!"
+
+            await conn.commit()
+
+            # Get updated like count
+            sql_count = "SELECT COUNT(*) FROM songlikes WHERE song_id = %s"
+            await cursor.execute(sql_count, (songId,))
+            likes_Res = await cursor.fetchone()
+            likes = likes_Res[0] if likes_Res else 0
+
+            return {
+                "success": True,
+                "message": action_message,
+                "newUpdate": likes
+            }
+
+    except Exception as err:
+        print(f"Error liking/unliking song: {err}")
+        return {"success": False, "message": "Failed to like/unlike song!"}
+
+    finally:
+        if conn:
+            try:
+                if conn in Config.pool._used:
+                    await Config.pool.release(conn)
+            except Exception as e:
+                print(f"Error releasing connection: {e}")
 
 async def update_view_count(songId, userId, songPercentage):
     """
@@ -77,7 +125,7 @@ async def update_view_count(songId, userId, songPercentage):
         if conn:
             try:
                 if conn in Config.pool._used:
-                    Config.pool.release(conn)  # Ensure the connection is in use before releasing
+                    await Config.pool.release(conn)  # Ensure the connection is in use before releasing
             except Exception as e:
                 print(f"Error releasing connection: {e}")
 
@@ -105,7 +153,13 @@ async def insert_download(user_id, song_id, file_name, file_format, itag, file_s
 
     finally:
         if conn:
-            Config.pool.release(conn)  # ✅ Release connection instead of closing
+            await Config.pool.release(conn)  # ✅ Release connection instead of closing
+
+
+
+
+
+
 
 
 async def fetch_songs(user_id=None, songs_per_page=15, offset=0, search=None, songId=None):
@@ -136,13 +190,8 @@ async def fetch_songs(user_id=None, songs_per_page=15, offset=0, search=None, so
             """
             values = [user_id] if user_id else [None]
 
-            if not search or search.lower() == 'null' and not songId:
-                count_query = "SELECT COUNT(*) FROM injustifyMusic"
-                await cursor.execute(count_query)
-                total_songs = (await cursor.fetchone())[0]
 
-                if offset >= total_songs:
-                    return {"message": "No results found"}
+            if not search or search.lower() == 'null' and not songId:
 
                 sql_query = f"{base_query} ORDER BY title LIMIT %s OFFSET %s"
                 values.extend([songs_per_page, offset])
@@ -154,17 +203,9 @@ async def fetch_songs(user_id=None, songs_per_page=15, offset=0, search=None, so
                 await cursor.execute(sql_query, tuple(values))
 
             else:
-                count_query = """
-                    SELECT COUNT(*)
-                    FROM injustifyMusic
-                    WHERE title LIKE %s OR artist LIKE %s
-                """
-                search_filter = f"%{search}%"
-                await cursor.execute(count_query, (search_filter, search_filter))
-                total_songs = (await cursor.fetchone())[0]
 
-                if offset >= total_songs:
-                    return {"message": "No results found"}
+                search_filter = f"%{search}%"
+
 
                 sql_query = f"""
                     {base_query}
@@ -192,14 +233,18 @@ async def fetch_songs(user_id=None, songs_per_page=15, offset=0, search=None, so
                 for song in songs
             ]
 
-            return {"total_songs": total_songs, "songs": result}
+            return { "songs": result}
 
     except Exception as e:
         return {"message": "Error fetching songs", "error": str(e)}
 
     finally:
         if conn:
-            Config.pool.release(conn)  # ✅ Release connection instead of closing
+            await Config.pool.release(conn)  # ✅ Release connection instead of closing
+
+
+
+
 
 
 
@@ -278,7 +323,7 @@ async def get_playlist_songs(playlist_id):
 
 
 
-async def fetchTrendingSongs():
+async def fetchTrendingSongs(userId=None):
     """
     Fetch trending songs based on views, likes, and comments within the last 30 days.
 
@@ -290,7 +335,6 @@ async def fetchTrendingSongs():
       2. Number of likes.
       3. Number of comments.
     """
-    print("Fetching trending songs...")
 
     sql_query = """
         SELECT 
@@ -302,6 +346,14 @@ async def fetchTrendingSongs():
             AVG(v.progress) AS average_progress,
             COUNT(DISTINCT l.user_id) AS likes_count,
             COUNT(DISTINCT c.comment_id) AS comments_count
+            CASE 
+                WHEN EXISTS (
+                    SELECT 1 
+                    FROM songlikes 
+                    WHERE songlikes.song_id = s.song_id AND songlikes.user_id = %s
+                ) THEN TRUE 
+                ELSE FALSE 
+            END AS liked
         FROM injustifymusic s
         JOIN views v ON s.song_id = v.song_id
         LEFT JOIN songlikes l ON s.song_id = l.song_id AND l.like_date >= DATE_SUB(NOW(), INTERVAL 1 MONTH)
@@ -313,16 +365,14 @@ async def fetchTrendingSongs():
     """
 
     try:
-        # 🔹 Get DB connection (Replace with your actual connection logic)
         conn = await Config.get_db_connection()
         if not conn:
             return {"success": False, "message": "Database connection failed"}
 
         async with conn.cursor() as cursor:
-            await cursor.execute(sql_query)  # ✅ Await query execution
-            trending_songs = await cursor.fetchall()  # ✅ Await fetching results
+            await cursor.execute(sql_query,userId)
+            trending_songs = await cursor.fetchall() 
 
-        # 🔹 Process results
         trending_songs_list = [
             {
                 'id': song[0],
@@ -332,7 +382,9 @@ async def fetchTrendingSongs():
                 'upload_date': song[4].strftime('%Y-%m-%d'),
                 'average_progress': song[5],
                 'likes_count': song[6],
-                'comments_count': song[7]
+                'comments_count': song[7],
+                'liked': song[8],
+                'Stype': "injustify"  
             }
             for song in trending_songs
         ]
@@ -345,9 +397,9 @@ async def fetchTrendingSongs():
 
     finally:
         if conn:
-            Config.pool.release(conn)  # ✅ Release connection instead of closing
+            await Config.pool.release(conn) 
 
-async def fetch_User_LikedSongs(userId, offset=0, limit=10):
+async def fetch_User_LikedSongs(userId, offset=0, limit=20):
     """
     Fetch songs liked by a user, sorted in descending order (recently liked),
     with pagination (10 per fetch by default). Converts tuples to dictionaries.
@@ -371,7 +423,7 @@ async def fetch_User_LikedSongs(userId, offset=0, limit=10):
     values = (userId, limit, offset)
 
     try:
-        conn = await Config.get_db_connection()  # ✅ Get async connection
+        conn = await Config.get_db_connection()
         async with conn.cursor() as cursor:
             await cursor.execute(sql_query, values)
             liked_songs = await cursor.fetchall()
@@ -381,9 +433,11 @@ async def fetch_User_LikedSongs(userId, offset=0, limit=10):
                 "song_id": song[0],
                 "title": song[1],
                 "artist": song[2],
-                "thumbnail": f'{Config.thumbnailPath}/{song[3]}',  # ✅ Fixed path separator
+                "thumbnail": f'{Config.thumbnailPath}/{song[3]}',
                 "release_date": song[4].strftime('%Y-%m-%d') if song[4] else None,
-                "like_date": song[5].strftime('%Y-%m-%d %H:%M:%S') if song[5] else None
+                "like_date": song[5].strftime('%Y-%m-%d %H:%M:%S') if song[5] else None,
+                "liked":True,
+                "Stype": "injustify" 
             }
             for song in liked_songs
         ]
@@ -396,7 +450,7 @@ async def fetch_User_LikedSongs(userId, offset=0, limit=10):
 
     finally:
         if conn:
-            Config.pool.release(conn)  # ✅ Release connection instead of closing
+            await Config.pool.release(conn) 
 
 
 async def fetchUserTopSongs(userId, limit=10):
@@ -412,14 +466,20 @@ async def fetchUserTopSongs(userId, limit=10):
             s.artist, 
             s.thumbnail_path AS album_cover, 
             s.release_date,
-            v.view_count AS user_view_count
+            COALESCE(v.view_count, 0) AS user_view_count,  -- Ensure 0 if no views exist
+            COALESCE(l.liked, FALSE) AS liked  -- Ensure FALSE if not liked
         FROM injustifymusic s
-        JOIN views v ON s.song_id = v.song_id
-        WHERE v.user_id = %s
-        ORDER BY v.view_count DESC
+        LEFT JOIN views v ON s.song_id = v.song_id AND v.user_id = %s
+        LEFT JOIN (
+            SELECT song_id, TRUE AS liked 
+            FROM songlikes 
+            WHERE user_id = %s
+        ) l ON s.song_id = l.song_id
+        ORDER BY COALESCE(v.view_count, 0) DESC 
         LIMIT %s
     """
-    values = (userId, limit)
+    values = (userId, userId, limit)
+
 
     try:
         conn = await Config.get_db_connection()  
@@ -434,7 +494,9 @@ async def fetchUserTopSongs(userId, limit=10):
                 "artist": song[2],
                 "thumbnail": f'{Config.thumbnailPath}/{song[3]}',  
                 "release_date": song[4].strftime('%Y-%m-%d') if song[4] else None,
-                "user_view_count": song[5]
+                "user_view_count": song[5],
+                "liked": song[6],
+                "Stype": "injustify",
             }
             for song in top_songs
         ]
@@ -447,7 +509,7 @@ async def fetchUserTopSongs(userId, limit=10):
 
     finally:
         if conn:
-            Config.pool.release(conn)  # ✅ Release connection instead of closing
+            await Config.pool.release(conn)  # ✅ Release connection instead of closing
 
 
 async def fetchStreamRate(userId):
@@ -547,7 +609,7 @@ async def fetchStreamRate(userId):
 
     finally:
         if conn:
-            Config.pool.release(conn) 
+            await Config.pool.release(conn) 
 
 
 async def createPlaylistDB(playlistName, userId):
@@ -577,46 +639,92 @@ async def createPlaylistDB(playlistName, userId):
         return {"success": False, "message": "Error creating playlist!!"}
     finally:
         if conn:
-            Config.pool.release(conn)  # ✅ Release connection instead of closing
+            await Config.pool.release(conn) 
 
 
 async def updatePlaylistDB(playlistId, songId, action, newPlaylistName=None):
     print(f"Updating playlist {playlistId}, songId: {songId}, action: {action}, newPlaylistName: {newPlaylistName}")
-    
+
+    conn = None
     try:
         conn = await Config.get_db_connection()
         async with conn.cursor() as cursor:
-            if action == "add":
-                sql_query = "INSERT INTO playlistSongs (playlist_id, song_id) VALUES (%s, %s)"
-                await cursor.execute(sql_query, (playlistId, songId))
             
+            # ADD SONG TO PLAYLIST
+            if action == "add":
+                sql_query = """
+                INSERT INTO playlistSongs (playlist_id, song_id) 
+                VALUES (%s, %s) 
+                ON DUPLICATE KEY UPDATE song_id = song_id
+                """  
+                await cursor.execute(sql_query, (playlistId, songId))
+                await conn.commit()
+
+                success_message = "Song added successfully!"
+
+            # REMOVE SONG FROM PLAYLIST
             elif action == "remove":
                 sql_query = "DELETE FROM playlistSongs WHERE playlist_id = %s AND song_id = %s"
                 await cursor.execute(sql_query, (playlistId, songId))
-            
+                await conn.commit()
+
+                success_message = "Song removed successfully!"
+
+            # DELETE ENTIRE PLAYLIST
             elif action == "delete":
-                await cursor.execute("DELETE FROM playlistSongs WHERE playlist_id = %s", (playlistId,))
-                await cursor.execute("DELETE FROM playlists WHERE playlist_id = %s", (playlistId,))
-            
-            elif action == "rename" and newPlaylistName:
+                sql_query = "DELETE FROM playlistSongs WHERE playlist_id = %s"
+                await cursor.execute(sql_query, (playlistId,))
+                await conn.commit()
+
+                sql_queryv = "DELETE FROM playlists WHERE playlist_id = %s"
+                await cursor.execute(sql_queryv, (playlistId,))
+                await conn.commit()
+                
+
+                success_message = "Playlist deleted successfully!"
+
+            # RENAME PLAYLIST
+            elif action == "rename":
+                if not newPlaylistName:
+                    return {"success": False, "message": "New playlist name is required for renaming."}
                 sql_query = "UPDATE playlists SET name = %s WHERE playlist_id = %s"
                 await cursor.execute(sql_query, (newPlaylistName, playlistId))
-            
-            await conn.commit()
-            return {"success": True, "message": f"Playlist {action} successfully!"}
-    
+                await conn.commit()
+
+                success_message = "Playlist renamed successfully!"
+
+
+            else:
+                return {"success": False, "message": f"Invalid action: {action}"}
+
+            return {"success": True, "message": success_message}
+
+    except aiomysql.Error as db_err:
+        print(f"Database error: {db_err}")
+        if conn:
+            await conn.rollback() 
+        return {"success": False, "message": "Database error occurred!"}
+
     except Exception as err:
-        print(f"Error updating playlist: {err}")
+        print(f"Unexpected error: {err}")
+        if conn:
+            await conn.rollback()
         return {"success": False, "message": f"Failed to {action} playlist!"}
-    
+
     finally:
-        Config.pool.release(conn)  # ✅ Release connection instead of closing
+        if conn:
+            Config.pool.release(conn)  
+
+
+    
+
 
 
 async def get_playlists(user_id):
     if not user_id:
         return {"success": False, "message": "User ID is required"}
 
+    conn = None  
     try:
         conn = await Config.get_db_connection()
         async with conn.cursor() as cursor:
@@ -639,18 +747,24 @@ async def get_playlists(user_id):
                         "name": p[1], 
                         "description": p[2],
                         "created_by": p[3],
-                        "created_at": p[4].strftime('%Y-%m-%d %H:%M:%S'),
-                        "picture": f"{Config.profilePath}/{p[5]}",
+                        "created_at": p[4].strftime('%Y-%m-%d %H:%M:%S') if p[4] else None,
+                        "picture": f"{Config.profilePath}/{p[5]}" if p[5] else None, 
                         "song_count": p[6]
                     }
                     for p in playlists
                 ]
             }
+
         return {"success": False, "message": "No playlists found for this user", "playlists": []}
 
+    except aiomysql.Error as db_err: 
+        print(f"Database Error: {db_err}")
+        return {"success": False, "message": "Database error occurred!", "error": str(db_err)}
+
     except Exception as err:
-        print(f"Database Error: {err}")
+        print(f"Unexpected Error: {err}")
         return {"success": False, "message": "An error occurred while fetching playlists", "error": str(err)}
-    
+
     finally:
-        Config.pool.release(conn)  # ✅ Release connection instead of closing
+        if conn:  
+            Config.pool.release(conn)

@@ -84,7 +84,7 @@ async def validate_user(user_email):
         return False
     finally:
         if conn:
-            Config.pool.release(conn)  
+            await Config.pool.release(conn)  
 
 async def create_new_user(Userinfo):
     if not Userinfo:
@@ -214,7 +214,7 @@ async def fetch_downloads(
     
     finally:
         if conn:
-            Config.pool.release(conn)  # ✅ Release connection instead of closing
+            await Config.pool.release(conn)  # ✅ Release connection instead of closing
 
 
 async  def delete_song_from_downloads(songId,userId):
@@ -229,7 +229,7 @@ async  def delete_song_from_downloads(songId,userId):
         return {"success": False, "message": f"Error deleting song: {str(e)}"}
     finally:
         if conn:
-            Config.pool.release(conn) 
+            await Config.pool.release(conn) 
 
 
 
