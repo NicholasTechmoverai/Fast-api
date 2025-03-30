@@ -8,6 +8,133 @@ import urllib.parse
 import aiohttp
 
 
+# async def fetch_streams(link):
+#     try:
+#         if not link:
+#             return {"success": False, "message": 'No URL entered. Kindly enter a valid URL.'}
+        
+#         ydl_opts = {
+#             'quiet': True,
+#             'no_warnings': True,
+#             'simulate': True,
+#             'skip_download': True,
+#             'listformats': False,
+#             'socket_timeout': 10,
+#         }
+
+#         # Use yt-dlp to fetch the video info
+#         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+#             info = ydl.extract_info(link, download=False)
+#             if not info:
+#                 raise Exception("Failed to retrieve video information.")
+
+#         # Fetch streams concurrently using asyncio.gather to speed up the process
+#         tasks = []
+#         for f in info["formats"]:
+#             task = asyncio.create_task(fetch_stream_details(f))
+#             tasks.append(task)
+
+        
+#         streams = await asyncio.gather(*tasks)
+        
+#         # Sort streams by resolution in ascending order
+#         #streams.sort(key=lambda x: int(x["resolution"].replace("x", "")))
+    
+#         for stream in streams:
+#             if isinstance(stream, dict) and "video_codec" in stream:
+#                 if "vp09." in stream["video_codec"]:
+#                     print("supported codec:", stream)
+               
+#             else:
+#                 print("Invalid stream format or missing 'video_codec':", stream)    
+
+
+#         if not streams:
+#             raise Exception("No streams available for this video.")
+        
+#         return {
+#             'success': True,
+#             'streams': streams,
+#             'info': {
+#                 "title": info.get("title"),
+#                 "author": info.get("uploader"),
+#                 "description": info.get("description"),
+#                 "views": info.get("view_count", 0)
+#             }
+#         }
+
+#     except Exception as e:
+#         return {"success": False, "message": f'Error: {str(e)}'}
+    
+# async def fetch_stream_details(f):
+#     """
+#     Helper function to gather essential stream details
+#     """
+#     return {
+#         "itag": f["format_id"],
+#         "ext": f["ext"],
+#         "resolution": f.get("resolution", "audio-only"),
+#         "video_codec": f.get("vcodec", "N/A"),
+#         "audio_codec": f.get("acodec", "N/A"),
+#         "vbr": f.get("vbr", 0),
+#         "abr": f.get("abr", 0),
+#         "size_mb": await get_file_size(f)
+#     }
+
+
+
+# async def get_file_size(stream):
+#     """
+#     Return the file size of the stream, using filesize_approx if filesize is None.
+#     Converts the size to MB for a human-readable format.
+#     """
+#     def parse_clen_from_url(url):
+#         """
+#         Extract 'clen' parameter from the URL and return its value as an integer.
+#         Handles encoded query parameters within a complex URL.
+#         """
+#         # Decode the URL
+#         decoded_url = urllib.parse.unquote(url)
+        
+#         # Find the 'clen' parameter in the decoded URL's path
+#         clen_param = 'clen='
+#         start_idx = decoded_url.find(clen_param)
+#         if start_idx == -1:
+#             return None
+        
+#         # Extract the value after 'clen='
+#         start_idx += len(clen_param)
+#         end_idx = decoded_url.find(';', start_idx)
+#         if end_idx == -1:
+#             end_idx = len(decoded_url)
+        
+#         # Extract 'clen' as a number
+#         clen_value = decoded_url[start_idx:end_idx]
+#         try:
+#             return int(clen_value)  # Convert the value to an integer
+#         except ValueError:
+#             print(f"Invalid 'clen' value: {clen_value}")
+#             return None
+
+#     # Check for filesize or filesize_approx
+#     filesize = stream.get('filesize') or stream.get('filesize_approx')
+
+#     if filesize is None:
+#         # Attempt to extract filesize from the URL
+#         url = stream.get('url')
+#         if not url:
+#             print("No URL found in stream.")
+#             return None
+
+#         filesize = parse_clen_from_url(url)
+#         if filesize is None:
+#             print("No valid 'clen' parameter found.")
+#             return None
+
+#     # Convert bytes to MB
+#     size_in_mb = filesize / (1024 * 1024)  # Convert bytes to MB
+#     return round(size_in_mb, 3)  # Round to 3 decimal places
+
 
 
 async def fetch_streams(link):
@@ -100,7 +227,34 @@ async def get_file_size(session, stream):
 
 
 
+# async def download_stream(url, itag, start_byte=0):
+#     """
+#     Download a specific video stream from YouTube AND SEND IN CHUNKS TO ROUTE FN.
+#     """
+#     try:
+#         ydl_opts = {
+#             'format': itag,
+#             'noplaylist': True,
+#             'quiet': True,
+#         }
 
+#         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+#             video_info = ydl.extract_info(url, download=False)
+#             video_url = next(
+#                 (fmt['url'] for fmt in video_info.get('formats', []) if fmt['format_id'] == itag),
+#                 None
+#             )
+#             if not video_url:
+#                 raise ValueError("Stream URL not found.")
+
+#         headers = {'Range': f'bytes={start_byte}-'}
+#         with requests.get(video_url, headers=headers, stream=True) as stream:
+#             stream.raise_for_status()
+#             for chunk in stream.iter_content(chunk_size=1024 * 1024):  # 1 MB chunks
+#                 yield chunk
+
+#     except Exception as e:
+#         yield f"Error: {e}".encode()
 
 async def download_stream(url, itag, start_byte=0):
     """
@@ -215,27 +369,30 @@ async def download_and_merge(url, video_itag, audio_itag):
             video_input = ffmpeg.input(video_path)
             audio_input = ffmpeg.input(audio_path)
 
-            # ffmpeg.output(
-            #     video_input,
-            #     audio_input,
-            #     merged_path,
-            #     vcodec='copy',
-            #     acodec='aac',
-            #     movflags='faststart',  # Move moov atom to the beginning
-            #     strict='experimental'
-            # ).run(overwrite_output=True, quiet=Tr                                    ue, capture_stdout=True, capture_stderr=True)
             ffmpeg.output(
                 video_input,
                 audio_input,
                 merged_path,
                 vcodec='copy',
                 acodec='aac',
-                movflags='+faststart',  # Move moov atom to the beginning
-                # threads=8,
-                present = 'veryfast',
-                strict='experimental',
-                pix_fmt='yuv420p',
+                movflags='faststart',  # Move moov atom to the beginning
+                strict='experimental'
             ).run(overwrite_output=True, quiet=True, capture_stdout=True, capture_stderr=True)
+
+            print("Merging Complete...")
+
+            # ffmpeg.output(
+            #     video_input,
+            #     audio_input,
+            #     merged_path,
+            #     vcodec='copy',
+            #     acodec='aac',
+            #     movflags='+faststart',  # Move moov atom to the beginning
+            #     # threads=8,
+            #     present = 'faster',
+            #     strict='experimental',
+            #     pix_fmt='yuv420p',
+            # ).run(overwrite_output=True, quiet=True, capture_stdout=True, capture_stderr=True)
 
         except FFmpegError as e:
             print("FFmpeg stderr:", e.stderr.decode())

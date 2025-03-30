@@ -20,7 +20,10 @@ def search_videos_pytube(query):
             return []
 
         return [
-            {"title": video.title, "url": video.watch_url}
+            {"title": video.title, 
+             "url": video.watch_url,
+             "Stype":'youtube'
+             }
             for video in search.results
         ]
     except Exception as e:
@@ -72,6 +75,7 @@ def search_videos_yt(search_query):
             {
                 "title": video["snippet"]["title"],
                 "url": f'https://www.youtube.com/watch?v={video["id"]["videoId"]}',
+                "Stype":'youtube'
             }
             for video in data.get("items", []) if "videoId" in video.get("id", {})
         ]

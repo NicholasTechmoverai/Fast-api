@@ -88,7 +88,7 @@ async def get_streams(request: Request):
                 "info": streams.get("info"),
                 "link": link,
                 "msg": streams.get("help_msg"),
-                "msg_type": streams.get("msg_type", "HELP"),
+                "type": streams.get("msg_type", "HELP"),
             })
         
         raise HTTPException(status_code=500, detail=streams.get("message", "Unable to fetch streams."))
