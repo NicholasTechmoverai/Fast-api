@@ -55,7 +55,7 @@ async def set_token(email, token):
 
 async def validate_token(email, token, delete=False):
     if not email or not token:
-        return {"valid": False, "message": "Email and token are required."}
+        return {"valid": False, "message": "Email and token are required.","requestNewToken": False}
 
     try:
         conn = await Config.get_db_connection()
@@ -67,23 +67,31 @@ async def validate_token(email, token, delete=False):
             result = await cursor.fetchone()
 
             if not result:
-                return {"valid": False, "message": "No token found for the given email or the token is invalid."}
+                return {"valid": False, "message": "No token found for the given email or the token is invalid.","requestNewToken": False }
 
             setToken, expires_at = result
 
             if datetime.utcnow() > expires_at:
                 await cursor.execute("DELETE FROM verification_sessions WHERE email = %s", (email,))
                 await conn.commit()
-                return {"valid": False, "message": "Token expired. Please sign up again."}
+                return {"valid": False, "message": "Token expired. Kindly request for new token codes!.", "requestNewToken": True}
+        
+
 
             if token == setToken:
+                query = "UPDATE injustifyusers SET verified_email = TRUE WHERE email = %s"
+                await cursor.execute(query, (email,))
+                await conn.commit()
+                
                 if delete:
                     await cursor.execute("DELETE FROM verification_sessions WHERE email = %s", (email,))
                     await conn.commit()
                 
-                return {"valid": True, "message": "Verification successful!"}
+                return {"valid": True, "message": "Verification successful!", "requestNewToken": False}
+            
+    
 
-        return {"valid": False, "message": "Verification failed. Token mismatch."}
+        return {"valid": False, "message": "Verification failed. Token mismatch.","requestNewToken": True}
     
     except Exception as e:
         logging.error(f"Error during token validation: {e}")

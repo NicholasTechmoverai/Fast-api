@@ -300,3 +300,59 @@ async def update_UserProfile(userId, username=None, email=None, picture=None):
     finally:
         if conn:
             await Config.pool.release(conn)
+
+
+async def delete_user(userId, password):
+    conn = await Config.get_db_connection()
+    try:
+        async with conn.cursor() as cursor:
+            # Validate password
+            query = "SELECT password FROM injustifyusers WHERE id=%s"
+            await cursor.execute(query, (userId,))
+            result = await cursor.fetchone()
+            if not result or not check_password_hash(result[0], password):
+                return {"success": False, "message": "Invalid password."}
+
+            # Delete from playlistsongs
+            query = """
+                DELETE FROM playlistsongs
+                WHERE playlist_id IN (
+                    SELECT playlist_id FROM playlists WHERE created_by = %s
+                );
+            """
+            await cursor.execute(query, (userId,))
+            await conn.commit()
+
+            # Delete from playlists
+            query = "DELETE FROM playlists WHERE created_by = %s"
+            await cursor.execute(query, (userId,))
+            await conn.commit()
+
+            # Delete from downloads
+            query = "DELETE FROM downloads WHERE user_id = %s"
+            await cursor.execute(query, (userId,))
+            await conn.commit()
+
+            # Delete from songlikes
+            query = "DELETE FROM songlikes WHERE user_id = %s"
+            await cursor.execute(query, (userId,))
+            await conn.commit()
+
+            # Finally, delete the user
+            query = "DELETE FROM injustifyusers WHERE id = %s"
+            await cursor.execute(query, (userId,))
+            await conn.commit()
+
+            return {"success": True, "message": "User deleted successfully."}
+
+    except Exception as e:
+        logging.error(f"Error deleting user: {e}")
+        return {"success": False, "message": f"Error deleting user: {str(e)}"}
+
+    finally:
+        if conn:
+            await Config.pool.release(conn)
+
+
+
+                

@@ -19,7 +19,7 @@ from starlette.responses import FileResponse
 from google.oauth2 import id_token
 from google.auth.transport import requests
 
-from utils.userDb import validate_user_login, validate_user, create_new_user, fetch_user, update_user_password
+from utils.userDb import validate_user_login, validate_user, create_new_user, fetch_user, update_user_password,delete_user
 from utils.auth_securityDb import set_token, validate_token
 from utils.email_notification_sender import send_verify_link, send_codes
 from config import Config
@@ -262,3 +262,54 @@ def get_avatar(user_id: str, size: int = 400):
         raise HTTPException(status_code=404, detail=f"Avatar not found, user_id:{user_id}, image_path:{image_path}")
     
     return FileResponse(image_path, media_type="image/png")
+
+
+
+class VerifyAccountRequest(BaseModel):
+    email: str
+    token: str
+
+@main_router.post('/account/verify')
+async def verifyemail(data: VerifyAccountRequest):
+    email = data.email
+    token = data.token
+    """
+    Verify the email address using the token provided in the query string.
+    """
+    if not email or not token:
+        raise HTTPException(status_code=400, detail="Email or token is missing!")
+   
+    checktoken = await validate_token(email, token,True)
+
+    if not checktoken['valid']:
+        raise HTTPException(status_code=400, detail=checktoken['message'])
+
+    return JSONResponse(status_code=200, content={
+        "success": True,
+        "message": checktoken['message']
+    })
+
+
+class VerifyDeleteRequest(BaseModel):
+    userId: str
+    password: str
+
+@main_router.post('/account/delete')
+async def deleteAccount(data: VerifyDeleteRequest):
+    userId = data.userId
+    password = data.password
+    """
+    Verify the email address using the token provided in the query string.
+    """
+    if not userId or not password:
+        raise HTTPException(status_code=400, detail="Email or token is missing!")
+   
+    responce = await delete_user(userId, password)
+
+    if not responce.get('success'):
+        raise HTTPException(status_code=400, detail=responce.get('message'))
+
+    return JSONResponse(status_code=200, content={
+        "success": True,
+        "message": responce.get('message'),
+    })
