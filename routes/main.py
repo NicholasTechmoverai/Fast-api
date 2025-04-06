@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse, RedirectResponse,Response
 from authlib.integrations.starlette_client import OAuth
 from starlette.config import Config as StarletteConfig
 from starlette.requests import Request
+from starlette.responses import FileResponse
 
 from google.oauth2 import id_token
 from google.auth.transport import requests
@@ -240,3 +241,24 @@ async def reset_password(request: ResetPasswordRequest):
 
     print(f"Password reset successful for {email}")
     return {"success": True}
+
+
+
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+USER_IMAGES = {
+    "184249562": os.path.join(BASE_DIR, "../static/uploads/user_102548979592530401204.png"),
+    "28895298": os.path.join(BASE_DIR, "../static/uploads/user_1a445842-2caf-4a7b-b7d0-7cc8b9afb1bd.png"),
+    "102548980029997529247": os.path.join(BASE_DIR, "../static/uploads/user_116670681163950384994.png"),
+    "102548979592530401204": os.path.join(BASE_DIR, "../static/uploads/user_94bc938e-7ea2-43b3-9818-146d1edd7446.png"),
+    
+}
+
+@main_router.get("/avatars/{user_id}")
+def get_avatar(user_id: str, size: int = 400):
+    image_path = USER_IMAGES.get(user_id)
+
+    if not image_path or not os.path.exists(image_path):
+        raise HTTPException(status_code=404, detail=f"Avatar not found, user_id:{user_id}, image_path:{image_path}")
+    
+    return FileResponse(image_path, media_type="image/png")
