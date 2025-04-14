@@ -64,7 +64,7 @@ from fastapi import APIRouter, Form, File, UploadFile, Depends
 @profile_router.post("/updateProfile")
 async def update_profile(
     userId: str = Form(...),
-    profilePic: UploadFile = File(None),  # Make it optional
+    profilePic: UploadFile = File(None),  
     name: str = Form(None),
     email: str = Form(None),
 ):

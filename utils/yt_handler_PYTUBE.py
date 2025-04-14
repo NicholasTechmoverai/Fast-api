@@ -82,7 +82,7 @@ def search_videos_yt(search_query):
 
     except (requests.exceptions.RequestException, ValueError) as e:
         logging.error(f"API request failed: {str(e)}. Switching to PyTube...")
-        api_available = False  # Disable API for future calls
+        api_available = False  
         return search_videos_pytube(search_query)
 
 
@@ -101,7 +101,7 @@ def get_video_id(video_url):
     """Extracts video ID from a YouTube URL."""
     parsed_url = urlparse(video_url)
     if parsed_url.hostname == "youtu.be":  # Shortened URL
-        return parsed_url.path[1:]  # Remove the leading "/"
+        return parsed_url.path[1:] 
     elif parsed_url.hostname in ["www.youtube.com", "youtube.com"]:  # Standard URL
         query_params = parse_qs(parsed_url.query)
         return query_params.get("v", [None])[0]
@@ -111,7 +111,6 @@ def get_video_id(video_url):
 def get_youtube_video_details(video_url):
     print('invoked and working!!',video_url)
     """Fetches YouTube video details using the YouTube Data API."""
-    # Your API key from Google Cloud Console
 
     # Extract video ID
     video_id = get_video_id(video_url)
@@ -127,18 +126,15 @@ def get_youtube_video_details(video_url):
         id=video_id
     )
     response = request.execute()
-    #print(response)
 
-    # Extract relevant details
     if response["items"]:
         video_details = response["items"][0]
         
-        # Extracting details from the response
         title = video_details["snippet"]["title"]
         views = video_details["statistics"]["viewCount"]
         duration = video_details["contentDetails"]["duration"]
-        likes = video_details["statistics"].get("likeCount")  # Only if provided
-        dislikes = "Not available"  # YouTube no longer provides dislikeCount publicly
+        likes = video_details["statistics"].get("likeCount")  
+        dislikes = "Not available"  
 
         return{
             "success":True,
@@ -154,7 +150,7 @@ def get_youtube_video_details(video_url):
     else:
         return {"error": "Video not found or invalid URL"}
 
-# Example usage
+
 
 
 #print(search_videos_yt('enya only time'))

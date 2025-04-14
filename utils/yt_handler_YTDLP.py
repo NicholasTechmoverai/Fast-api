@@ -284,14 +284,14 @@ async def download_stream(url, itag, start_byte=0):
         stream = await session.get(video_url, headers=headers)
         stream.raise_for_status()
 
-        async for chunk in stream.content.iter_any():  # ✅ Correct usage
+        async for chunk in stream.content.iter_any(): 
             if not isinstance(chunk, (bytes, bytearray)):  
                 chunk = str(chunk).encode()
 
             #print(f"Sending chunk of size {len(chunk)} bytes")  
             yield chunk
         
-        await session.close()  # Close session after streaming completes
+        await session.close()  
         
     except Exception as e:
         print(f"Error streaming video: {str(e)}")
@@ -324,7 +324,7 @@ async def download_file(url, file_path, total_size=None):
                     if total_size > 0:
                         progress = (downloaded_size / total_size) * 100
                         print(f"Downloading {file_path}: {progress:.2f}% complete", end='\r')
-                print()  # Newline after download completes
+                print()  
 
 async def download_and_merge(url, video_itag, audio_itag):
 
@@ -375,7 +375,7 @@ async def download_and_merge(url, video_itag, audio_itag):
                 merged_path,
                 vcodec='copy',
                 acodec='aac',
-                movflags='faststart',  # Move moov atom to the beginning
+                movflags='faststart',  
                 strict='experimental'
             ).run(overwrite_output=True, quiet=True, capture_stdout=True, capture_stderr=True)
 

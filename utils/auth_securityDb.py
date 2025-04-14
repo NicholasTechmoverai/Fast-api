@@ -31,7 +31,7 @@ async def check_token_existency(email):
 
     except Exception as e:
         logging.error(f"Error checking token: {e}")
-        return False  # Assume no valid token exists
+        return False 
 
 async def set_token(email, token):
     try:

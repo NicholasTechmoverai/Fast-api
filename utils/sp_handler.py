@@ -9,7 +9,6 @@ sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id, client_sec
 
 async def Search_suggestions_spotify(search):
     try:
-        # Run the blocking call in a separate thread
         results = await asyncio.to_thread(sp.search, q=search, type="track", limit=10)
         #print(results)
         

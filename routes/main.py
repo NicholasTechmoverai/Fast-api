@@ -8,6 +8,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
 from urllib.parse import urlencode
+from pydantic import BaseModel
 
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse,Response
@@ -76,7 +77,7 @@ async def login(request: Request):
     raise HTTPException(status_code=404, detail="User not found. Please check your email.")
 
 @main_router.get("/login/google")
-async def google_login(request: Request):  # Ensure request is passed
+async def google_login(request: Request):  
     redirect_uri = f"{Config.BACKEND_SERVER}/login/callback"
     return await google.authorize_redirect(request, redirect_uri)
 
@@ -165,11 +166,6 @@ async def create_user(request: Request):
     
     return JSONResponse(content={"message": result["message"], "data": {"email": email, "name": name}}, status_code=200)
 
-# More routes like password reset can be added following similar patterns
-from fastapi import APIRouter, HTTPException, Request, Depends
-from pydantic import BaseModel
-
-# Pydantic models for request validation
 class EmailRequest(BaseModel):
     email: str
 
@@ -182,7 +178,6 @@ class ResetPasswordRequest(BaseModel):
     password: str
     code: str
 
-# Simulated dependencies (replace with actual functions)
 # Endpoint to send email reset codes
 @main_router.post('/send_email_reset_codes')
 async def send_email_reset_codes(request: EmailRequest):

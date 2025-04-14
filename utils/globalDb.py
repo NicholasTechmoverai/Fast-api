@@ -107,8 +107,12 @@ async def update_view_count(songId, userId, songPercentage):
                 sql_insert = """
                     INSERT INTO views (user_id, song_id, view_count, progress) 
                     VALUES (%s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE 
+                        view_count = VALUES(view_count), 
+                        progress = VALUES(progress)
                 """
                 await cursor.execute(sql_insert, (userId, songId, viewCount, songPercentage))
+
 
             await conn.commit()
             return {"success": True, "message": "View count updated successfully"}
@@ -125,7 +129,7 @@ async def update_view_count(songId, userId, songPercentage):
         if conn:
             try:
                 if conn in Config.pool._used:
-                    await Config.pool.release(conn)  # Ensure the connection is in use before releasing
+                    await Config.pool.release(conn) 
             except Exception as e:
                 print(f"Error releasing connection: {e}")
 
@@ -153,7 +157,7 @@ async def insert_download(user_id, song_id, file_name, file_format, itag, file_s
 
     finally:
         if conn:
-            await Config.pool.release(conn)  # ✅ Release connection instead of closing
+            await Config.pool.release(conn)  
 
 
 
@@ -240,7 +244,7 @@ async def fetch_songs(user_id=None, songs_per_page=15, offset=0, search=None, so
 
     finally:
         if conn:
-            await Config.pool.release(conn)  # ✅ Release connection instead of closing
+            await Config.pool.release(conn)  
 
 
 
@@ -509,7 +513,7 @@ async def fetchUserTopSongs(userId, limit=10):
 
     finally:
         if conn:
-            await Config.pool.release(conn)  # ✅ Release connection instead of closing
+            await Config.pool.release(conn)  
 
 
 async def fetchStreamRate(userId):
@@ -520,7 +524,6 @@ async def fetchStreamRate(userId):
     print(f"Fetching stream rate for user: {userId}")
 
     try:
-        # ✅ Await the connection since it's an async function
         conn = await Config.get_db_connection()  
         if not conn:
             return {"success": False, "message": "Database connection failed"}
@@ -580,9 +583,8 @@ async def fetchStreamRate(userId):
         """
 
         async with conn.cursor() as cursor:
-            await cursor.execute(sql_query, (userId,))  # ✅ Await execute
-            stream_rate = await cursor.fetchall()  # ✅ Await fetchall
-
+            await cursor.execute(sql_query, (userId,))  
+            stream_rate = await cursor.fetchall() 
         if stream_rate:
             return {
                 "success": True,

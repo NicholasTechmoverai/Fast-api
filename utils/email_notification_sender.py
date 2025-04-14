@@ -25,11 +25,6 @@ SMTP_PORT = int(os.getenv("SMTP_PORT"))
 async def generate_random_code(length=6):
     """
     Generates a random numeric code of the specified length.
-
-    Args:
-        length (int): Length of the code to generate. Default is 6.
-    Returns:
-        str: Random numeric code.
     """
     return ''.join(str(random.randint(0, 9)) for _ in range(length))
 

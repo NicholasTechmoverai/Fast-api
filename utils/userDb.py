@@ -118,8 +118,9 @@ async def update_user_password(username, password):
         return {"success": False, "message": "Username and password are required"}
     
     password_hash = generate_password_hash(password)
-    conn = await Config.get_db_connection()
     try:
+        conn = await Config.get_db_connection()
+
         async with conn.cursor() as cursor:
             query = "UPDATE injustifyUsers SET password = %s WHERE email = %s"
             await cursor.execute(query, (password_hash, username))
@@ -214,7 +215,7 @@ async def fetch_downloads(
     
     finally:
         if conn:
-            await Config.pool.release(conn)  # ✅ Release connection instead of closing
+            await Config.pool.release(conn)  
 
 
 async  def delete_song_from_downloads(songId,userId):
