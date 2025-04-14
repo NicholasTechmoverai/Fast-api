@@ -105,7 +105,20 @@ async def get_sp_results(userId: str, search: str = Query(None, alias="search"))
 
 @router.get("/song/info/{songId}")
 async def fetch_song_info(songId: str):
-    return fetch_songs(None, 24, 24, 0, songId)
+    print("rendering...",songId)
+    song_result = await fetch_songs(
+        user_id=None,
+        songs_per_page=10,
+        offset=0,
+        search=None,
+        songId=songId
+    )
+    if song_result.get("songs"):
+        return song_result
+    else:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+
 
 @router.get("/pl/{pl_id}")
 async def fetch_playlists(pl_id: str):

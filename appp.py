@@ -78,3 +78,117 @@ if __name__ == "__main__":
 
 
 #uvicorn appp:app --reload --host 192.168.100.2 --port 5000
+# CREATE TABLE users (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     username VARCHAR(50) UNIQUE NOT NULL,
+#     email VARCHAR(100) UNIQUE NOT NULL,
+#     password_hash VARCHAR(255) NOT NULL,
+#     is_active BOOLEAN DEFAULT TRUE,
+#     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+#     last_login TIMESTAMP NULL
+# );
+
+# -- Profile settings
+# CREATE TABLE profile_settings (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     user_id INT NOT NULL,
+#     first_name VARCHAR(50),
+#     last_name VARCHAR(50),
+#     avatar_url VARCHAR(255),
+#     bio TEXT,
+#     location VARCHAR(100),
+#     website_url VARCHAR(255),
+#     company VARCHAR(100),
+#     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+#     UNIQUE KEY (user_id)
+# );
+
+# -- Preference settings
+# CREATE TABLE preference_settings (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     user_id INT NOT NULL,
+#     theme ENUM('light', 'dark', 'system') DEFAULT 'system',
+#     language VARCHAR(10) DEFAULT 'en',
+#     timezone VARCHAR(50) DEFAULT 'UTC',
+#     date_format VARCHAR(20) DEFAULT 'YYYY-MM-DD',
+#     items_per_page INT DEFAULT 25,
+#     enable_animations BOOLEAN DEFAULT TRUE,
+#     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+#     UNIQUE KEY (user_id)
+# );
+
+# -- Notification settings
+# CREATE TABLE notification_settings (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     user_id INT NOT NULL,
+#     email_notifications BOOLEAN DEFAULT TRUE,
+#     push_notifications BOOLEAN DEFAULT TRUE,
+#     desktop_notifications BOOLEAN DEFAULT TRUE,
+#     sound_notifications BOOLEAN DEFAULT TRUE,
+    
+#     -- Email notification preferences
+#     email_marketing BOOLEAN DEFAULT FALSE,
+#     email_product_updates BOOLEAN DEFAULT TRUE,
+#     email_security_alerts BOOLEAN DEFAULT TRUE,
+    
+#     -- Push notification preferences
+#     push_new_messages BOOLEAN DEFAULT TRUE,
+#     push_mentions BOOLEAN DEFAULT TRUE,
+#     push_reminders BOOLEAN DEFAULT FALSE,
+    
+#     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+#     UNIQUE KEY (user_id)
+# );
+
+# -- Security settings
+# CREATE TABLE security_settings (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     user_id INT NOT NULL,
+#     two_factor_auth BOOLEAN DEFAULT FALSE,
+#     two_factor_method ENUM('authenticator', 'sms', 'email') DEFAULT 'authenticator',
+#     backup_codes VARCHAR(255),
+#     last_password_change TIMESTAMP NULL,
+#     login_alert BOOLEAN DEFAULT TRUE,
+#     suspicious_login_alert BOOLEAN DEFAULT TRUE,
+#     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+#     UNIQUE KEY (user_id)
+# );
+
+# -- Application-specific settings (customize as needed)
+# CREATE TABLE application_settings (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     user_id INT NOT NULL,
+#     auto_save_interval INT DEFAULT 5 COMMENT 'In minutes',
+#     default_view ENUM('list', 'grid', 'card') DEFAULT 'list',
+#     show_preview_pane BOOLEAN DEFAULT TRUE,
+#     experimental_features BOOLEAN DEFAULT FALSE,
+#     keyboard_shortcuts JSON,
+#     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+#     UNIQUE KEY (user_id)
+# );
+
+# -- Audit log for settings changes
+# CREATE TABLE settings_audit_log (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     user_id INT NOT NULL,
+#     setting_type ENUM('profile', 'preference', 'notification', 'security', 'application'),
+#     setting_id INT COMMENT 'ID from the respective settings table',
+#     changed_field VARCHAR(50),
+#     old_value TEXT,
+#     new_value TEXT,
+#     changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+#     ip_address VARCHAR(45),
+#     user_agent TEXT,
+#     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+# );
+
+# -- System-wide settings (not user-specific)
+# CREATE TABLE system_settings (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     setting_key VARCHAR(100) UNIQUE NOT NULL,
+#     setting_value TEXT,
+#     data_type ENUM('string', 'number', 'boolean', 'json') DEFAULT 'string',
+#     description TEXT,
+#     is_public BOOLEAN DEFAULT FALSE,
+#     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+# );

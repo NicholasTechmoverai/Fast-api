@@ -194,60 +194,60 @@ async def fetch_songs(user_id=None, songs_per_page=15, offset=0, search=None, so
             """
             values = [user_id] if user_id else [None]
 
+            # Case: Fetch specific song by songId
+            if songId:
+                sql_query = f"{base_query} WHERE injustifyMusic.song_id = %s"
+                values.append(songId)
+                await cursor.execute(sql_query, tuple(values))
 
-            if not search or search.lower() == 'null' and not songId:
+            # Case: Search songs by title or artist
+            elif search and search.lower() != 'null':
+                sql_query = f"""
+                    {base_query}
+                    WHERE title LIKE %s OR artist LIKE %s
+                    ORDER BY title
+                    LIMIT %s OFFSET %s
+                """
+                search_filter = f"%{search}%"
+                values.extend([search_filter, search_filter, songs_per_page, offset])
+                await cursor.execute(sql_query, tuple(values))
 
+            # Default: fetch paginated songs
+            else:
                 sql_query = f"{base_query} ORDER BY title LIMIT %s OFFSET %s"
                 values.extend([songs_per_page, offset])
                 await cursor.execute(sql_query, tuple(values))
 
-            elif songId and not search:
-                sql_query = f"{base_query} WHERE song_id = %s ORDER BY title LIMIT %s OFFSET %s"
-                values.extend([songId, songs_per_page, offset])
-                await cursor.execute(sql_query, tuple(values))
-
-            else:
-
-                search_filter = f"%{search}%"
-
-
-                sql_query = f"""
-                    {base_query}
-                    WHERE title LIKE %s OR artist LIKE %s
-                    ORDER BY title LIMIT %s OFFSET %s
-                """
-                values.extend([search_filter, search_filter, songs_per_page, offset])
-                await cursor.execute(sql_query, tuple(values))
-
             songs = await cursor.fetchall()
+
             result = [
                 {
                     "song_id": song[0],
                     "artist": song[1],
                     "title": song[2],
-                    "url": f'{song[3]}',
+                    "url": f"{song[3]}",
                     "thumbnail": f"{Config.thumbnailPath}/{song[4]}",
                     "duration": song[5],
                     "views": song[6],
-                    "date": song[7].strftime('%Y-%m-%d %H:%M:%S'),
+                    "date": song[7].strftime('%Y-%m-%d %H:%M:%S') if song[7] else None,
                     "likes": song[8],
-                    "liked": bool(song[9]),  
+                    "liked": bool(song[9]),
                     "Stype": "injustify"
                 }
                 for song in songs
             ]
 
-            return { "songs": result}
+            return {"success": True, "songs": result}
 
     except Exception as e:
-        return {"message": "Error fetching songs", "error": str(e)}
+        return {"success": False, "message": "Error fetching songs", "error": str(e)}
 
     finally:
-        if conn:
-            await Config.pool.release(conn)  
-
-
-
+        try:
+            if conn and conn in Config.pool._used:
+                await Config.pool.release(conn)
+        except Exception as e:
+            print("Failed to release connection:", str(e))
 
 
 
