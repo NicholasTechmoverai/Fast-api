@@ -1,7 +1,7 @@
 import os
 import re
 import logging
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException,Response
 from fastapi.responses import StreamingResponse
 from config import Config
 import mimetypes
@@ -139,17 +139,33 @@ async def stream_file(filename: str, request: Request):
     media_type = get_media_type(filename)
     range_header = request.headers.get("range")
 
+    # Common CORS headers for all responses
+    cors_headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type, Range",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Expose-Headers": "Content-Range, Content-Length, Accept-Ranges",
+        "Cross-Origin-Resource-Policy": "cross-origin"
+    }
+
+    # Handle OPTIONS preflight request
+    if request.method == "OPTIONS":
+        return Response(status_code=204, headers=cors_headers)
+
+    # Partial content handling
     if range_header:
         try:
             start, end = parse_range_header(range_header, file_size)
-            
+            logging.info(f"Range requested: {start}-{end}")
+
             headers = {
+                **cors_headers,
                 "Content-Range": f"bytes {start}-{end}/{file_size}",
                 "Accept-Ranges": "bytes",
                 "Content-Length": str(end - start + 1),
                 "Content-Type": media_type,
             }
-            
+
             return StreamingResponse(
                 generate_chunks(file_path, start, end, chunk_size),
                 status_code=206,
@@ -157,20 +173,25 @@ async def stream_file(filename: str, request: Request):
                 media_type=media_type
             )
         except ValueError as e:
+            logging.error(f"Invalid range: {range_header}")
             raise HTTPException(status_code=400, detail=str(e))
 
     # Full file response
+    logging.info(f"Serving full file: {filename}")
+
     headers = {
+        **cors_headers,
         "Accept-Ranges": "bytes",
         "Content-Length": str(file_size),
         "Content-Type": media_type,
     }
-    
+
     return StreamingResponse(
         generate_chunks(file_path, chunk_size=chunk_size),
         headers=headers,
         media_type=media_type
     )
+
 
     
 

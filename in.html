@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Stream Card Embed</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #f9f9f9;
+      font-family: Arial, sans-serif;
+    }
+    .card {
+      width: 400px;
+      height: 250px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .card-header {
+      padding: 12px;
+      font-size: 16px;
+      font-weight: bold;
+      border-bottom: 1px solid #eee;
+    }
+    iframe {
+      flex: 1;
+      width: 100%;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">Stream Preview</div>
+    <iframe src="http://localhost:8080/you/stream/6fb8f1ca" allowfullscreen></iframe>
+  </div>
+</body>
+</html>
