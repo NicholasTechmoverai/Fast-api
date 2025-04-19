@@ -39,7 +39,12 @@
 <body>
   <div class="card">
     <div class="card-header">Stream Preview</div>
-    <iframe src="http://localhost:8080/you/stream/6fb8f1ca" allowfullscreen></iframe>
   </div>
+  <script>
+    const recognition = new webkitSpeechRecognition();
+    recognition.onresult = (e) => console.log(e.results[0][0].transcript);
+    recognition.start();
+
+  </script>
 </body>
 </html>

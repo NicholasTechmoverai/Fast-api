@@ -178,8 +178,8 @@ class ViewModelView(ModelView, model=View):
 
 class DownloadModelView(ModelView, model=Download):
     column_list = [
-        Download.download_id, Download.user_id, Download.song_id,
-        Download.download_status, Download.timestamp, Download.file_format
+        Download.download_id, Download.user_id, Download.song_id,Download.file_name,
+        Download.download_status, Download.timestamp
     ]
     column_sortable_list = [Download.timestamp]
     column_default_sort = (Download.timestamp, True)
